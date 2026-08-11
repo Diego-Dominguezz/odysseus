@@ -3082,7 +3082,7 @@ async def stream_agent_loop(
     messages: List[Dict],
     headers: Optional[Dict] = None,
     temperature: float = 0.3,
-    max_tokens: int = 4096,
+    max_tokens: int = 8192,
     prompt_type: Optional[str] = None,
     max_rounds: int = MAX_AGENT_ROUNDS,
     max_tool_calls: int = 0,
@@ -3969,6 +3969,9 @@ async def stream_agent_loop(
             bool(all_tool_schemas),
             agent_stream_timeout,
         )
+        if not max_tokens or max_tokens <= 0:
+            max_tokens = 8192
+
         async for chunk in stream_llm_with_fallback(
             _candidates,
             messages,
