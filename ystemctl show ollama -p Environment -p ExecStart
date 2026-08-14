@@ -1,0 +1,43 @@
+[0;1;34m# ]8;;file://RoomPC/etc/systemd/system/ollama.service\/etc/systemd/system/ollama.service]8;;\[0m
+[0;1;36m[Unit][0m
+[0;1;32mDescription=[0mOllama Service
+[0;1;32mAfter=[0mnetwork-online.target
+
+[0;1;36m[Service][0m
+[0;1;32mExecStart=[0m/usr/local/bin/ollama serve
+[0;1;32mUser=[0mollama
+[0;1;32mGroup=[0mollama
+[0;1;32mRestart=[0malways
+[0;1;32mRestartSec=[0m3
+[0;1;32mEnvironment=[0m"PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+
+[0;1;36m[Install][0m
+[0;1;32mWantedBy=[0mdefault.target
+
+[0;1;34m# ]8;;file://RoomPC/etc/systemd/system/ollama.service.d/override.conf\/etc/systemd/system/ollama.service.d/override.conf]8;;\[0m
+[0;1;38:5:245m# Odysseus KDE Integration — Ollama Resource Safety Override[0m
+[0;1;38:5:245m# Installed by install.sh — safe to re-run[0m
+[0;1;38:5:245m#[0m
+[0;1;38:5:245m# Resource safety configuration (Phase 0.6):[0m
+[0;1;38:5:245m#   - OLLAMA_HOST: Listen on all interfaces for Docker connectivity[0m
+[0;1;38:5:245m#   - OLLAMA_KEEP_ALIVE: Keep model loaded 30min to reduce reload latency[0m
+[0;1;38:5:245m#   - OLLAMA_NUM_PARALLEL: Limit concurrency to reduce peak memory[0m
+[0;1;38:5:245m#   - OLLAMA_MAX_LOADED_MODELS: Only one model at a time[0m
+[0;1;38:5:245m#   - OLLAMA_FLASH_ATTENTION: Lower VRAM usage during inference[0m
+[0;1;38:5:245m#   - MemoryHigh/MemoryMax: Soft/hard RAM limits to protect desktop[0m
+[0;1;38:5:245m#   - OOMScoreAdjust: Ollama is first to be killed under memory pressure[0m
+[0;1;38:5:245m#[0m
+[0;1;38:5:245m# NOTE: No GPU VRAM limit is set — the model gets full GPU access.[0m
+[0;1;38:5:245m#       Only system RAM is bounded for desktop fluency.[0m
+
+[0;1;36m[Service][0m
+[0;1;32mEnvironment=[0m"OLLAMA_HOST=0.0.0.0:11434"
+[0;1;32mEnvironment=[0m"OLLAMA_KEEP_ALIVE=30m"
+[0;1;32mEnvironment=[0m"OLLAMA_NUM_PARALLEL=1"
+[0;1;32mEnvironment=[0m"OLLAMA_MAX_LOADED_MODELS=1"
+[0;1;32mEnvironment=[0m"OLLAMA_FLASH_ATTENTION=1"
+
+[0;1;38:5:245m# Systemd resource safety limits[0m
+[0;1;32mMemoryHigh=[0m24G
+[0;1;32mMemoryMax=[0m27G
+[0;1;32mOOMScoreAdjust=[0m500

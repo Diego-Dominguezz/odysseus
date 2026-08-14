@@ -159,7 +159,7 @@ class ResearchHandler:
                 temperature=0.1,
                 max_tokens=200,
                 headers=llm_headers,
-                timeout=15,
+                timeout=60,
                 max_retries=1,
             )
             query = strip_thinking(response).strip().strip('"\'')
@@ -718,7 +718,13 @@ class ResearchHandler:
 
     @staticmethod
     async def _probe_endpoint(endpoint: str, model: str, headers: dict = None):
-        """Quick probe to verify the LLM endpoint/model responds before research."""
+        """Quick probe to verify the LLM endpoint/model responds before research.
+
+        Local models (Ollama, etc.) can take 30-90s to cold-load into VRAM on
+        first use. A short probe timeout aborts mid-load, which can leave the
+        Ollama runner in a bad state and cause repeated GPU load/abort cycles
+        on every retry. 90s gives large local models room to load once.
+        """
         from src.llm_core import llm_call_async
         try:
             logger.info(f"Probing {model} at {endpoint} (has_auth={bool(headers and 'Authorization' in (headers or {}))})")
@@ -729,7 +735,7 @@ class ResearchHandler:
                 temperature=0,
                 max_tokens=5,
                 headers=headers,
-                timeout=15,
+                timeout=90,
                 max_retries=1,
             )
             logger.info(f"Endpoint probe OK: {model}")

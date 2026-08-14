@@ -79,7 +79,7 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
-    restart: unless-stopped
+    restart: "no"
 
   chromadb:
     image: docker.io/chromadb/chroma:latest
@@ -89,7 +89,7 @@ services:
       - chromadb-data:/chroma/chroma
     environment:
       - ANONYMIZED_TELEMETRY=FALSE
-    restart: unless-stopped
+    restart: "no"
 
   searxng:
     # Pinned, not :latest — odysseus waits on searxng's healthcheck
@@ -139,7 +139,7 @@ services:
       timeout: 6s
       retries: 20
       start_period: 10s
-    restart: unless-stopped
+    restart: "no"
 
   ntfy:
     image: docker.io/binwiederhier/ntfy
@@ -150,7 +150,7 @@ services:
       - ntfy-cache:/var/cache/ntfy
     environment:
       - NTFY_BASE_URL=${NTFY_BASE_URL:-http://localhost:8091}
-    restart: unless-stopped
+    restart: "no"
 
 volumes:
   searxng-data:

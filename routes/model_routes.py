@@ -1822,7 +1822,7 @@ def setup_model_routes(model_discovery):
 
                 base = _normalize_base(ep_data["base_url"])
                 _with_tools = item.get("with_tools", False)
-                result = _probe_single_model(base, ep_data.get("api_key"), model_id, timeout=8, with_tools=_with_tools)
+                result = _probe_single_model(base, ep_data.get("api_key"), model_id, timeout=60, with_tools=_with_tools)
                 result["model"] = model_id
                 result["endpoint_id"] = ep_id
                 results.append(result)

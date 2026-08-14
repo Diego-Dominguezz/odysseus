@@ -3082,7 +3082,7 @@ async def stream_agent_loop(
     messages: List[Dict],
     headers: Optional[Dict] = None,
     temperature: float = 0.3,
-    max_tokens: int = 8192,
+    max_tokens: int = 4096,
     prompt_type: Optional[str] = None,
     max_rounds: int = MAX_AGENT_ROUNDS,
     max_tool_calls: int = 0,
@@ -3877,9 +3877,6 @@ async def stream_agent_loop(
     # so the user can resume instead of the turn silently stalling.
     _exhausted_rounds = False
 
-    _last_tool_signature = None
-    _repeated_tool_calls = 0
-
     for round_num in range(1, max_rounds + 1):
         round_response = ""
         round_reasoning = ""  # reasoning_content deltas (DeepSeek-thinking, vLLM --reasoning-parser)
@@ -3941,34 +3938,10 @@ async def stream_agent_loop(
                     and t.get("name") not in disabled_tools
                 ]
         else:
-            # Local models: send selected native tool schemas as well.
-            # Ollama supports OpenAI-style tool schemas on /api/chat.
-            # Keep MCP filtering based on explicit MCP intent.
-            if _relevant_tools:
-                _schema_names = set(_relevant_tools)
-                if _needs_admin:
-                    _schema_names |= _ADMIN_TOOLS
-
-                base_schemas = [
-                    s for s in FUNCTION_TOOL_SCHEMAS
-                    if s.get("function", {}).get("name") in _schema_names
-                ]
-
-                _last_content = _last_user.lower()
-                _wants_mcp = any(kw in _last_content for kw in _MCP_KEYWORDS)
-
-                _mcp_filtered = (
-                    [s for s in mcp_schemas
-                     if s.get("function", {}).get("name") in _relevant_tools]
-                    if _wants_mcp
-                    else []
-                )
-
-                all_tool_schemas = base_schemas + _mcp_filtered
-            else:
-                _last_content = _last_user.lower()
-                _wants_mcp = any(kw in _last_content for kw in _MCP_KEYWORDS)
-                all_tool_schemas = mcp_schemas if (_wants_mcp and mcp_schemas) else []
+            # Local: only MCP schemas when message suggests MCP tool usage
+            _last_content = _last_user.lower()
+            _wants_mcp = any(kw in _last_content for kw in _MCP_KEYWORDS)
+            all_tool_schemas = mcp_schemas if (_wants_mcp and mcp_schemas) else []
         agent_stream_timeout = int(get_setting("agent_stream_timeout_seconds", 300) or 300)
 
         _tool_names_sent = [t.get("function", {}).get("name") for t in (all_tool_schemas or []) if t.get("function")]
@@ -3997,8 +3970,27 @@ async def stream_agent_loop(
             agent_stream_timeout,
         )
         if not max_tokens or max_tokens <= 0:
-            max_tokens = 8192
+            max_tokens = 4096
+            logger.warning(
+                "[GEN-FIX] max_tokens was %s; forcing max_tokens=%s",
+                max_tokens,
+                4096,
+            )
 
+        if not max_tokens or max_tokens <= 0:
+            logger.warning(
+                "[GEN-FIX] max_tokens=%s; forcing max_tokens=4096",
+                max_tokens,
+            )
+            max_tokens = 4096
+
+        logger.warning(
+            "[DEBUG-GEN] model=%s max_tokens=%s temperature=%s prompt_tokens=%s",
+            model,
+            max_tokens,
+            temperature,
+            estimate_tokens(messages),
+        )
         async for chunk in stream_llm_with_fallback(
             _candidates,
             messages,
@@ -4237,37 +4229,6 @@ async def stream_agent_loop(
             is_api_model=(_is_api_model and not guide_only),
             allow_fenced_for_api=_ody_doc_finetune_mode,
         )
-        # Local models can repeat the exact same native tool call after receiving its result.
-        # Stop the loop after two consecutive identical batches and force a final answer.
-        _tool_signature = tuple(
-            (
-                str(getattr(_tc, "name", None) or (_tc.get("name") if isinstance(_tc, dict) else "")),
-                json.dumps(
-                    getattr(_tc, "arguments", None)
-                    if getattr(_tc, "arguments", None) is not None
-                    else (_tc.get("arguments", _tc.get("args", {})) if isinstance(_tc, dict) else {}),
-                    sort_keys=True,
-                    default=str,
-                ),
-            )
-            for _tc in (converted_calls or [])
-        )
-        if _tool_signature and _tool_signature == _last_tool_signature:
-            _repeated_tool_calls += 1
-        else:
-            _repeated_tool_calls = 0
-        _last_tool_signature = _tool_signature
-        if _repeated_tool_calls >= 2:
-            logger.warning(
-                "[agent] identical native tool call repeated %d times; forcing final answer",
-                _repeated_tool_calls + 1,
-            )
-            _force_answer = True
-            messages.append({
-                "role": "system",
-                "content": "You are repeating the exact same tool call without making progress. Do not call any more tools. Give your best final answer now using the information already gathered.",
-            })
-
         if _ody_doc_stream_create_mode and tool_blocks:
             create_idx = next(
                 (idx for idx, block in enumerate(tool_blocks) if block.tool_type == "create_document"),
